@@ -30,13 +30,13 @@ def read_serial():
 # 別スレッドで受信データを処理
 threading.Thread(target=read_serial, daemon=True).start()
 
-print("Enter text to send. Press Ctrl+R to send reboot command. Ctrl+C to exit.")
+print("Enter text to send. Press Ctrl+D to send reboot command. Ctrl+C to exit.")
 
 try:
     while True:
         # ユーザー入力をチェック
         cmd = input("> ")
-        if cmd.lower() == '\x12':  # Ctrl+R のASCIIコードは 0x12
+        if cmd.lower() == '\x04':  # Ctrl+D のASCIIコードは 0x04
             print("[INFO] Sending Ctrl+D to reboot the device...")
             ser.write(b'\x04')  # Ctrl+D を送信
         else:
