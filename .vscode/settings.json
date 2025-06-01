@@ -1,0 +1,8 @@
+{
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/invistigate/python_workspace/BNO085_SPI_Python_test/lib"
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/invistigate/python_workspace/BNO085_SPI_Python_test/lib"
+    ]
+}
