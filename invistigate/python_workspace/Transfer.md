@@ -14,9 +14,9 @@
 
 # trans.shの使い方
 1. ターミナルを開きます。
-2. `cd`コマンドを使用して、`Adafruit_Projects`ディレクトリに移動します。
+2. `cd`コマンドを使用して、`N_Project`ディレクトリに移動します。
    ```bash
-   cd ~/Adafruit_Projects
+   cd ~/N_project/invistigate/python_workspace
    ```
 3. スクリプトを実行します。
    ```bash
