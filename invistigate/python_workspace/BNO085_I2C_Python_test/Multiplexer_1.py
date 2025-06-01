@@ -1,113 +1,95 @@
 import time
 import board
 import busio
-import traceback
-from adafruit_bno08x import (
-    BNO_REPORT_ACCELEROMETER,
-    BNO_REPORT_GYROSCOPE,
-    BNO_REPORT_MAGNETOMETER,
-    BNO_REPORT_ROTATION_VECTOR,
-)
+from adafruit_bno08x import BNO_REPORT_ACCELEROMETER
 from adafruit_bno08x.i2c import BNO08X_I2C
 
 # I2Cの初期化
 i2c = busio.I2C(board.SCL1, board.SDA1, frequency=400000)
 
+# デバッグモードのフラグ
+debug_mode = False
+
 # マルチプレクサのチャンネル選択用関数
 def pcaselect(channel):
     if channel > 7:
         return  # チャンネルが範囲外の場合は何もしない
-    for _ in range(3):  # 最大3回リトライ
-        if i2c.try_lock():
-            try:
-                i2c.writeto(0x70, bytes([1 << channel]))  # マルチプレクサのアドレスは0x70
-                return
-            finally:
-                i2c.unlock()
-        time.sleep(0.1)  # ロック取得失敗時に待機
-    print(f"Failed to acquire I2C lock for pcaselect on channel {channel}")
-
-# デバッグ用ログを追加
-print("Starting sensor initialization...")
+    if not i2c.try_lock():
+        if debug_mode:
+            print("Failed to acquire I2C lock for pcaselect")
+        return
+    try:
+        i2c.writeto(0x70, bytes([1 << channel]))  # マルチプレクサのアドレスは0x70
+    finally:
+        i2c.unlock()
 
 # センサーの初期化
-sensors = []
-for channel in range(8):
-    print(f"Initializing sensors on channel {channel}...")
-    for attempt in range(3):  # 最大3回リトライ
-        try:
-            print(f"Selecting channel {channel}, attempt {attempt + 1}...")
-            pcaselect(channel)
-            if not i2c.try_lock():
-                print(f"Failed to acquire I2C lock for sensor initialization on channel {channel}, attempt {attempt + 1}")
-                time.sleep(0.1)
-                continue
-            try:
-                print(f"Attempting to initialize sensor1 on channel {channel} with address 0x4A...")
-                sensor1 = BNO08X_I2C(i2c, address=0x4A)  # アドレス0x4Aのセンサー
-                print(f"Sensor1 initialized successfully on channel {channel}.")
-
-                print(f"Attempting to initialize sensor2 on channel {channel} with address 0x4B...")
-                sensor2 = BNO08X_I2C(i2c, address=0x4B)  # アドレス0x4Bのセンサー
-                print(f"Sensor2 initialized successfully on channel {channel}.")
-
-                sensors.append((sensor1, sensor2))
-                print(f"Sensors initialized on channel {channel}")
-                break
-            finally:
-                i2c.unlock()
-        except Exception as e:
-            print(f"Failed to initialize sensors on channel {channel}, attempt {attempt + 1}: {e}")
-            traceback.print_exc()
-        time.sleep(0.1)
-    else:
-        print(f"Giving up on initializing sensors on channel {channel} after 3 attempts")
-
-print("Sensor initialization complete.")
-
-# センサー機能の有効化
-def enable_sensor_feature(sensor, feature, feature_name):
+def initialize_sensor(channel, address):
     try:
-        sensor.enable_feature(feature)
-        print(f"{feature_name} enabled successfully")
-        return True
-    except RuntimeError as e:
-        print(f"Error enabling {feature_name}: {e}")
-        return False
+        pcaselect(channel)
+        sensor = BNO08X_I2C(i2c, address=address, debug=debug_mode)
+        if debug_mode:
+            print(f"Sensor initialized on channel {channel} at address {hex(address)}")
+
+        # 加速度機能を有効化
+        sensor.enable_feature(BNO_REPORT_ACCELEROMETER)
+        if debug_mode:
+            print("Accelerometer feature enabled.")
+
+        return sensor
     except Exception as e:
-        print(f"Unexpected error enabling {feature_name}: {e}")
-        traceback.print_exc()
-        return False
+        if debug_mode:
+            print(f"Failed to initialize sensor on channel {channel} at address {hex(address)}: {e}")
+        return None
 
-# 各センサーの機能を有効化
-features = [
-    (BNO_REPORT_ACCELEROMETER, "Accelerometer"),
-]
-
-enabled_features = {}
-for channel, (sensor1, sensor2) in enumerate(sensors):
-    for feature, name in features:
-        enabled_features[(channel, name)] = enable_sensor_feature(sensor1, feature, name)
-
-# 有効化された機能の表示
-for (channel, name), status in enabled_features.items():
-    print(f"Channel {channel} - {name}: {'Enabled' if status else 'Failed to enable'}")
+# センサーのリセット
+def reset_sensor(sensor):
+    try:
+        sensor.soft_reset()
+        if debug_mode:
+            print("Sensor reset successfully.")
+    except Exception as e:
+        if debug_mode:
+            print(f"Failed to reset sensor: {e}")
 
 # メインループ
-while True:
-    for channel, (sensor1, sensor2) in enumerate(sensors):
-        try:
-            pcaselect(channel)
-            if not sensor1._data_ready or not sensor2._data_ready:
-                print(f"No data ready on channel {channel}")
-                continue
-            accel1 = sensor1._read_packet()
-            accel2 = sensor2._read_packet()
-            now = time.monotonic()
-            print(f"Channel {channel} - Sensor 1: {now:.3f},{accel1[0]:.6f},{accel1[1]:.6f},{accel1[2]:.6f}")
-            print(f"Channel {channel} - Sensor 2: {now:.3f},{accel2[0]:.6f},{accel2[1]:.6f},{accel2[2]:.6f}")
-        except RuntimeError as e:
-            print(f"Runtime error on channel {channel}: {e}")
-        except Exception as e:
-            print(f"Unexpected error on channel {channel}: {e}")
-    time.sleep(0.1)
+if __name__ == "__main__":
+    channels = [0, 1]  # 使用するチャンネルを指定
+    sensors = []
+
+    # 各チャンネルのセンサーを初期化
+    for channel in channels:
+        sensor1 = initialize_sensor(channel, 0x4A)  # 1台目のセンサー
+        sensor2 = initialize_sensor(channel, 0x4B)  # 2台目のセンサー
+
+        if sensor1 is None or sensor2 is None:
+            print(f"Failed to initialize sensors on channel {channel}. Skipping this channel.")
+            continue
+
+        sensors.append((channel, sensor1, sensor2))
+
+    if not sensors:
+        print("No sensors initialized successfully. Exiting.")
+        exit(1)
+
+    while True:
+        for channel, sensor1, sensor2 in sensors:
+            try:
+                # 1台目のセンサーからデータ取得
+                accel1 = sensor1.acceleration
+                now1 = time.monotonic()
+                print(f"Channel {channel} - Sensor 1: {now1:.3f},{accel1[0]:.6f},{accel1[1]:.6f},{accel1[2]:.6f}")
+
+                # 2台目のセンサーからデータ取得
+                accel2 = sensor2.acceleration
+                now2 = time.monotonic()
+                print(f"Channel {channel} - Sensor 2: {now2:.3f},{accel2[0]:.6f},{accel2[1]:.6f},{accel2[2]:.6f}")
+
+            except RuntimeError as e:
+                if debug_mode:
+                    print(f"Runtime error on channel {channel}: {e}")
+            except Exception as e:
+                if debug_mode:
+                    print(f"Unexpected error on channel {channel}: {e}")
+
+        time.sleep(0.01)  # データ取得間隔
