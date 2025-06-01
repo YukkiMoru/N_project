@@ -1,3 +1,5 @@
+# [WARN]まだエラーのまま
+
 import time
 import board
 import busio
@@ -8,7 +10,7 @@ from adafruit_bno08x.i2c import BNO08X_I2C
 i2c = busio.I2C(board.SCL1, board.SDA1, frequency=400000)
 
 # デバッグモードのフラグ
-debug_mode = False
+debug_mode = True
 
 # マルチプレクサのチャンネル選択用関数
 def pcaselect(channel):
@@ -27,6 +29,16 @@ def pcaselect(channel):
 def initialize_sensor(channel, address):
     try:
         pcaselect(channel)
+
+        # デバイスが存在するか確認
+        if not i2c.try_lock():
+            raise RuntimeError(f"I2C lock could not be acquired for channel {channel}.")
+        try:
+            if address not in i2c.scan():
+                raise RuntimeError(f"No I2C device found at address {hex(address)} on channel {channel}.")
+        finally:
+            i2c.unlock()
+
         sensor = BNO08X_I2C(i2c, address=address, debug=debug_mode)
         if debug_mode:
             print(f"Sensor initialized on channel {channel} at address {hex(address)}")
@@ -54,7 +66,7 @@ def reset_sensor(sensor):
 
 # メインループ
 if __name__ == "__main__":
-    channels = [0, 1]  # 使用するチャンネルを指定
+    channels = range(8)  # 全てのチャンネル（0〜7）を指定
     sensors = []
 
     # 各チャンネルのセンサーを初期化
@@ -62,11 +74,16 @@ if __name__ == "__main__":
         sensor1 = initialize_sensor(channel, 0x4A)  # 1台目のセンサー
         sensor2 = initialize_sensor(channel, 0x4B)  # 2台目のセンサー
 
-        if sensor1 is None or sensor2 is None:
-            print(f"Failed to initialize sensors on channel {channel}. Skipping this channel.")
+        if sensor1 is None and sensor2 is None:
+            print(f"No sensors detected on channel {channel}. Skipping this channel.")
             continue
 
+        # センサーが存在する場合のみリストに追加
         sensors.append((channel, sensor1, sensor2))
+        if sensor1:
+            print(f"Channel {channel} - Sensor 1 initialized at address 0x4A.")
+        if sensor2:
+            print(f"Channel {channel} - Sensor 2 initialized at address 0x4B.")
 
     if not sensors:
         print("No sensors initialized successfully. Exiting.")
@@ -75,15 +92,33 @@ if __name__ == "__main__":
     while True:
         for channel, sensor1, sensor2 in sensors:
             try:
-                # 1台目のセンサーからデータ取得
-                accel1 = sensor1.acceleration
-                now1 = time.monotonic()
-                print(f"Channel {channel} - Sensor 1: {now1:.3f},{accel1[0]:.6f},{accel1[1]:.6f},{accel1[2]:.6f}")
+                if sensor1:
+                    for _ in range(3):  # 最大3回再試行
+                        try:
+                            accel1 = sensor1.acceleration
+                            if accel1:  # データが取得できた場合のみ出力
+                                now1 = time.monotonic()
+                                print(f"Channel {channel} - Sensor 1: {now1:.3f},{accel1[0]:.6f},{accel1[1]:.6f},{accel1[2]:.6f}")
+                                break
+                        except Exception as e:
+                            if debug_mode:
+                                print(f"Retrying Sensor 1 on channel {channel}: {e}")
+                    else:
+                        print(f"Channel {channel} - Sensor 1: Failed to retrieve data after retries.")
 
-                # 2台目のセンサーからデータ取得
-                accel2 = sensor2.acceleration
-                now2 = time.monotonic()
-                print(f"Channel {channel} - Sensor 2: {now2:.3f},{accel2[0]:.6f},{accel2[1]:.6f},{accel2[2]:.6f}")
+                if sensor2:
+                    for _ in range(3):  # 最大3回再試行
+                        try:
+                            accel2 = sensor2.acceleration
+                            if accel2:  # データが取得できた場合のみ出力
+                                now2 = time.monotonic()
+                                print(f"Channel {channel} - Sensor 2: {now2:.3f},{accel2[0]:.6f},{accel2[1]:.6f},{accel2[2]:.6f}")
+                                break
+                        except Exception as e:
+                            if debug_mode:
+                                print(f"Retrying Sensor 2 on channel {channel}: {e}")
+                    else:
+                        print(f"Channel {channel} - Sensor 2: Failed to retrieve data after retries.")
 
             except RuntimeError as e:
                 if debug_mode:
