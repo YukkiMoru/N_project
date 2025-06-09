@@ -10,8 +10,8 @@ def main():
     # --- センサ設定コマンド送信 ---
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
         ser.write(b"short,20000,30\n")
-        # "OK"が返るまで最大500行読む
-        for _ in range(500):
+        # "OK"が返るまで最大5行読む
+        for _ in range(5):
             response = ser.readline().decode().strip()
             if response == "OK":
                 print("コマンドが正常に受け付けられました")

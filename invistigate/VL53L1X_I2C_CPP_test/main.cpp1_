@@ -58,27 +58,27 @@ void setup()
   }
 
   // デフォルト設定
-  applySettings("medium", 33000, 33);
+  // applySettings("medium", 33000, 33);
 
-  // // センサの設定
-  // bool enabled = false;
-  // while (!enabled) {
-  //   if (Serial.available()) {
-  //     String cmd = Serial.readStringUntil('\n');
-  //     cmd.trim();
-  //     int idx1 = cmd.indexOf(',');
-  //     int idx2 = cmd.lastIndexOf(',');
-  //     if (idx1 > 0 && idx2 > idx1) {
-  //       String mode = cmd.substring(0, idx1);
-  //       int timing = cmd.substring(idx1 + 1, idx2).toInt();
-  //       int interval = cmd.substring(idx2 + 1).toInt();
-  //       applySettings(mode, timing, interval);
-  //       Serial.println("OK");
-  //       enabled = true;
-  //       delay(1000); // 追加: 設定完了後に1秒待つ
-  //     }
-  //   }
-  // }
+  // センサの設定
+  bool enabled = false;
+  while (!enabled) {
+    if (Serial.available()) {
+      String cmd = Serial.readStringUntil('\n');
+      cmd.trim();
+      int idx1 = cmd.indexOf(',');
+      int idx2 = cmd.lastIndexOf(',');
+      if (idx1 > 0 && idx2 > idx1) {
+        String mode = cmd.substring(0, idx1);
+        int timing = cmd.substring(idx1 + 1, idx2).toInt();
+        int interval = cmd.substring(idx2 + 1).toInt();
+        applySettings(mode, timing, interval);
+        Serial.println("OK");
+        enabled = true;
+        delay(1000); // 追加: 設定完了後に1秒待つ
+      }
+    }
+  }
   delay(3000);
 }
 
