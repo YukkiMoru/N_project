@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
+#include "StatusLED.h"
 
 #define NUMPIXELS 1
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+StatusLED statusLED(pixels);
 
 void setup() {
   Serial.begin(115200);
@@ -15,15 +17,16 @@ void setup() {
 
   pixels.begin();
   pixels.setBrightness(20);
+  delay(10); // 初期化の安定化
+  statusLED.setState(StatusLED::Initializing);
+  pixels.show(); // 明示的にshowを呼ぶ
+  delay(1000);
 }
 
 void loop() {
-  Serial.println("Hello!");
-  pixels.fill(0x0000FF); // 赤
-  pixels.show();
-  delay(500);
-
-  pixels.fill(0x000000); // 消灯
-  pixels.show();
-  delay(500);
+  statusLED.setState(StatusLED::Outputting);
+  delay(1000);
+  statusLED.setState(StatusLED::Error);
+  delay(1000);
+  Serial.println("reset");
 }
