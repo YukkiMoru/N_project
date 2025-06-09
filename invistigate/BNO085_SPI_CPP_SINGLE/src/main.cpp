@@ -82,26 +82,25 @@ void setup() {
   }
 
   Serial.println("All sensors initialized.");
+
+  // CSVヘッダー出力
+  Serial.println("milisec,x,y,z");
 }
 
 void loop() {
   sh2_SensorValue_t sensorValue;
 
   for (int i = 0; i < NUM_SENSORS; i++) {
-    // CSピンをLOWにしてセンサーを選択 (Adafruitライブラリが内部で処理するはず)
-    // digitalWrite(bno08x_cs_pins[i], LOW);
-
     if (bno08x_sensors[i].getSensorEvent(&sensorValue)) {
       switch (sensorValue.sensorId) {
         case SH2_ACCELEROMETER:
-          Serial.print("BNO08x #");
-          Serial.print(i);
-          Serial.print(" - Accel - X: ");
-          Serial.print(sensorValue.un.accelerometer.x);
-          Serial.print(" Y: ");
-          Serial.print(sensorValue.un.accelerometer.y);
-          Serial.print(" Z: ");
-          Serial.println(sensorValue.un.accelerometer.z);
+          Serial.print(millis());
+          Serial.print(",");
+          Serial.print(sensorValue.un.accelerometer.x, 6);
+          Serial.print(",");
+          Serial.print(sensorValue.un.accelerometer.y, 6);
+          Serial.print(",");
+          Serial.println(sensorValue.un.accelerometer.z, 6);
           break;
         // 他のセンサータイプのケースも追加可能
         default:
@@ -111,9 +110,6 @@ void loop() {
           Serial.println(sensorValue.sensorId);
           break;
       }
-    } else {
-      // Serial.print("No data from BNO08x #");
-      // Serial.println(i);
     }
     // CSピンをHIGHにしてセンサーを非選択 (Adafruitライブラリが内部で処理するはず)
     // digitalWrite(bno08x_cs_pins[i], HIGH);

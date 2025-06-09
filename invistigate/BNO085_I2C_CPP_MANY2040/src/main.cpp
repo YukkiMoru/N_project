@@ -33,7 +33,7 @@ void setup()
   Serial.println("[SP]BNO08X Quaternion & Euler Angles Test"); // Test 1 から変更
 
   Wire1.begin();          // use secondary I2C bus
-  Wire1.setClock(100000); // Set I2C clock speed to 400kHz
+  Wire1.setClock(400000); // Set I2C clock speed to 400kHz
   // delay(1000); // Removed, bno08x.begin_I2C will handle necessary waits or checks
 
   // Initialize BNO08x sensor
@@ -50,17 +50,17 @@ void setup()
   Serial.println("[SP]BNO08x Found and Initialized!");
 
   Serial.println("[SP]Setting up sensor reports...");
-  // Enable the Rotation Vector report.
-  // The interval BNO08X_SAMPLERATE_DELAY_MS (20ms) corresponds to 50Hz.
-  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION, BNO08X_SAMPLERATE_DELAY_MS))
+  // Enable the Accelerometer report.
+  // The interval BNO08X_SAMPLERATE_DELAY_MS (10ms) corresponds to 100Hz.
+  if (!bno08x.enableReport(SH2_ACCELEROMETER, BNO08X_SAMPLERATE_DELAY_MS))
   {
-    Serial.println("[SP]Could not enable rotation vector report. Check sensor state.");
+    Serial.println("[SP]Could not enable accelerometer report. Check sensor state.");
     while (1)
     {
       delay(10); // Halt execution
     }
   }
-  Serial.println("[SP]LINEAR ACCELERATION report enabled successfully.");
+  Serial.println("[SP]ACCELEROMETER report enabled successfully.");
 
   delay(10);
   lastTime = millis();  // Initialize lastTime for the loop's timing mechanism
@@ -79,13 +79,13 @@ void attemptReinitialization()
   }
   Serial.println("[SP]BNO08x Reinitialized!");
 
-  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION, BNO08X_SAMPLERATE_DELAY_MS))
+  if (!bno08x.enableReport(SH2_ACCELEROMETER, BNO08X_SAMPLERATE_DELAY_MS))
   {
-    Serial.println("[SP]Could not enable rotation vector report after reinitialization.");
+    Serial.println("[SP]Could not enable accelerometer report after reinitialization.");
   }
   else
   {
-    Serial.println("[SP]LINEAR ACCELERATION report re-enabled successfully.");
+    Serial.println("[SP]ACCELEROMETER report re-enabled successfully.");
     // センサー通信が再確立されたため、タイミング変数をリセット
     startTime = millis(); // スタート時間を現在の時刻にリセット
     lastTime = startTime; // lastTime もリセットして、次のインターバルチェックを正しく行う
@@ -94,36 +94,24 @@ void attemptReinitialization()
 
 void loop()
 {
-  unsigned long currentMillis = millis();                          // ループ開始時の現在時刻を取得
-  unsigned long currentTimeForPayload = currentMillis - startTime; // データペイロード用のタイムスタンプ (スタート/再初期化からの経過時間)
-
-  // サンプリング時間かどうかを確認
-  if ((currentMillis - lastTime) >= BNO08X_SAMPLERATE_DELAY_MS)
-  {
-    lastTime = currentMillis; // 次のインターバルのために lastTime を更新
-
-    // センサーデータの取得
-    if (bno08x.getSensorEvent(&sensorValue))
-    {
-      if (sensorValue.sensorId == SH2_LINEAR_ACCELERATION) // ←ここを変更
-      {
-        float timestamp_f = (float)currentTimeForPayload; // currentTimeForPayload を使用
-        float val_1 = sensorValue.un.linearAcceleration.x;    // x軸加速度
-        float val_2 = sensorValue.un.linearAcceleration.y; // y軸加速度
-        float val_3 = sensorValue.un.linearAcceleration.z; // z軸加速度
-        // float z_val = 0.0f; // リニア加速度にはw成分はないので0で埋める
-
-        Serial.printf("%.2f,%.6f,%.6f,%.6f\n", timestamp_f, val_1, val_2, val_3);
-      }
-    } else
-    {
-      // センサーデータの取得に失敗
-      if (currentMillis - lastReinitAttemptTime > REINIT_COOLDOWN_MS)
-      {
-        Serial.println("[SP]Failed to get sensor event. Cooldown passed, attempting reinitialization.");
-        lastReinitAttemptTime = currentMillis; // 再初期化試行時刻を更新
-        attemptReinitialization();
-      }
+  // 1つのBNO08x(I2C)のみ対応
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    switch (sensorValue.sensorId) {
+      case SH2_ACCELEROMETER:
+        Serial.print(millis());
+        Serial.print(",");
+        Serial.print(sensorValue.un.accelerometer.x, 6);
+        Serial.print(",");
+        Serial.print(sensorValue.un.accelerometer.y, 6);
+        Serial.print(",");
+        Serial.println(sensorValue.un.accelerometer.z, 6);
+        break;
+      default:
+        Serial.print("BNO08x - Unknown sensor ID: ");
+        Serial.println(sensorValue.sensorId);
+        break;
     }
   }
+  // サンプリング間隔を維持
+  delay(1);
 }
