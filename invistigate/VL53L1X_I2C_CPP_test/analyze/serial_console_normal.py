@@ -7,7 +7,7 @@ BAUD = 115200
 def main():
     # --- センサ設定コマンド送信 ---
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write(b"medium,33000,33\n")
+        ser.write(b"short,20000,20\n")
         # "OK"が返るまで最大5行読む
         for _ in range(5):
             response = ser.readline().decode().strip()
