@@ -45,8 +45,11 @@ void applySettings(String mode, int timing, int interval) {
 
 void setup()
 {
-  while (!Serial) {}
   Serial.begin(115200);
+  while (!Serial) {
+    delay(10); // シリアルポートが開くまで待機
+  }
+  Serial.println("Adafruit VL53L1X Example");
   Wire.begin();
   Wire.setClock(400000); // use 400 kHz I2C
 
