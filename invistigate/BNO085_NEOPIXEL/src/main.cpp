@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
-#include "StatusLED.h"
+#include <StatusLED.h>
 
 #define NUMPIXELS 1
 
