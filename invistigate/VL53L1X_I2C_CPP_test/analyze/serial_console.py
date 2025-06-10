@@ -9,7 +9,7 @@ DATA_SIZE = 7  # 4バイト(ms) + 2バイト(dist) + 1バイト(timeout)
 def main():
     # --- センサ設定コマンド送信 ---
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write(b"short,20000,30\n")
+        ser.write(b"long,50000,50\n")
         # "OK"が返るまで最大5行読む
         for _ in range(5):
             response = ser.readline().decode().strip()
