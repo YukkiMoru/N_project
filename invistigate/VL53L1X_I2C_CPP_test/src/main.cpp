@@ -28,8 +28,13 @@ https://learn.adafruit.com/adafruit-qt-py-2040/pinouts
 #include <Arduino.h>
 #include <Wire.h>
 #include <VL53L1X.h>
+#include <StatusLED.h>
 
 VL53L1X sensor;
+
+#define NUMPIXELS 1
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+StatusLED statusLED(pixels);
 
 void applySettings(String mode, int timing, int interval) {
   if (mode == "short") {
@@ -49,7 +54,20 @@ void setup()
   while (!Serial) {
     delay(10); // シリアルポートが開くまで待機
   }
+  #if defined(NEOPIXEL_POWER)
+    pinMode(NEOPIXEL_POWER, OUTPUT);
+    digitalWrite(NEOPIXEL_POWER, HIGH);
+  #endif
+
+  pixels.begin();
+  pixels.setBrightness(20);
+  delay(10); // 初期化の安定化
+
   Serial.println("Adafruit VL53L1X Example");
+
+  statusLED.setState(StatusLED::Initializing);
+  pixels.show(); // 明示的にshowを呼ぶ
+  
   Wire.begin();
   Wire.setClock(400000); // use 400 kHz I2C
 
@@ -57,6 +75,7 @@ void setup()
   if (!sensor.init())
   {
     Serial.println("Failed to detect and initialize sensor!");
+    statusLED.setState(StatusLED::Error);
     while (1);
   }
 
@@ -64,25 +83,25 @@ void setup()
   applySettings("medium", 33000, 33);
 
   // // センサの設定
-  // bool enabled = false;
-  // while (!enabled) {
-  //   if (Serial.available()) {
-  //     String cmd = Serial.readStringUntil('\n');
-  //     cmd.trim();
-  //     int idx1 = cmd.indexOf(',');
-  //     int idx2 = cmd.lastIndexOf(',');
-  //     if (idx1 > 0 && idx2 > idx1) {
-  //       String mode = cmd.substring(0, idx1);
-  //       int timing = cmd.substring(idx1 + 1, idx2).toInt();
-  //       int interval = cmd.substring(idx2 + 1).toInt();
-  //       applySettings(mode, timing, interval);
-  //       Serial.println("OK");
-  //       enabled = true;
-  //       delay(1000); // 追加: 設定完了後に1秒待つ
-  //     }
-  //   }
-  // }
-  delay(3000);
+  bool enabled = false;
+  while (!enabled) {
+    if (Serial.available()) {
+      String cmd = Serial.readStringUntil('\n');
+      cmd.trim();
+      int idx1 = cmd.indexOf(',');
+      int idx2 = cmd.lastIndexOf(',');
+      if (idx1 > 0 && idx2 > idx1) {
+        String mode = cmd.substring(0, idx1);
+        int timing = cmd.substring(idx1 + 1, idx2).toInt();
+        int interval = cmd.substring(idx2 + 1).toInt();
+        applySettings(mode, timing, interval);
+        Serial.println("OK");
+        enabled = true;
+      }
+    }
+  }
+  delay(1000);
+  statusLED.setState(StatusLED::Outputting);
 }
 
 void loop()
@@ -90,6 +109,10 @@ void loop()
   uint32_t ms = millis();
   uint16_t dist = sensor.read();
   uint8_t timeout = sensor.timeoutOccurred() ? 1 : 0;
+  if(timeout) {
+    Serial.println("Timeout occurred!");
+    statusLED.setState(StatusLED::Error);
+  }
   Serial.print(ms);
   Serial.print(",");
   Serial.print(dist);
