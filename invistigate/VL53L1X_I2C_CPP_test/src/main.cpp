@@ -90,8 +90,10 @@ void loop()
   uint32_t ms = millis();
   uint16_t dist = sensor.read();
   uint8_t timeout = sensor.timeoutOccurred() ? 1 : 0;
-  Serial.write((uint8_t*)&ms, 4);
-  Serial.write((uint8_t*)&dist, 2);
-  Serial.write(timeout);
+  Serial.print(ms);
+  Serial.print(",");
+  Serial.print(dist);
+  Serial.print(",");
+  Serial.println(timeout);
   delay(1); // 追加: 1ms待つことでバッファオーバーフロー防止
 }

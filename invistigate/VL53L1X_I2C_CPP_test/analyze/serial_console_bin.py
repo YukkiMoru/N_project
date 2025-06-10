@@ -20,6 +20,7 @@ def main():
             print("OK応答が得られませんでした")
             return
         # C++側のdelay(1000)+delay(3000)に合わせて4秒待つ
+        ser.reset_input_buffer()  # 追加: バッファクリア
         time.sleep(4)
 
     # --- データ受信 ---
@@ -28,14 +29,21 @@ def main():
         ser.reset_output_buffer()
         print("シリアルポートからのデータ受信開始...（Ctrl+Cで終了）")
         try:
+            buffer = b''
             while True:
-                data = ser.read(DATA_SIZE)
-                if len(data) == DATA_SIZE:
-                    ms, dist, timeout = struct.unpack('<IHB', data)
-                    if timeout:
-                        print(f"{ms}, TIMEOUT")
-                    else:
-                        print(f"{ms}, {dist}")
+                buffer += ser.read(ser.in_waiting or 1)
+                while len(buffer) >= DATA_SIZE:
+                    chunk = buffer[:DATA_SIZE]
+                    buffer = buffer[DATA_SIZE:]
+                    try:
+                        ms, dist, timeout = struct.unpack('<IHB', chunk)
+                        if timeout:
+                            print(f"{ms}, TIMEOUT")
+                        else:
+                            print(f"{ms}, {dist}")
+                    except struct.error:
+                        # データずれ時はバッファを1バイトずらして再同期
+                        buffer = buffer[1:]
         except KeyboardInterrupt:
             print("終了します")
 
