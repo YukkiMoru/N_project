@@ -34,11 +34,11 @@ def main():
                 parts = line.split(',')
                 if len(parts) != 3:
                     continue
-                ms, dist, timeout = parts
-                if timeout == '1':
-                    print(f"{ms}, TIMEOUT")
+                sensor_id, ms, dist = parts
+                if dist == 'NULL':
+                    print(f"{sensor_id}, {ms}, TIMEOUT")
                 else:
-                    print(f"{ms}, {dist}")
+                    print(f"{sensor_id}, {ms}, {dist}")
         except KeyboardInterrupt:
             print("終了します")
 

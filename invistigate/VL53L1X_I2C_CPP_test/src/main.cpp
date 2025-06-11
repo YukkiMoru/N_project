@@ -24,28 +24,52 @@ VL53L1X 距離センサーモジュール仕様・ピンアサイン
 CPU: RP2040
 https://learn.adafruit.com/adafruit-qt-py-2040/pinouts
 */
+/*
+GPIO5 -> VL53L1X XSHUT 0
+GPIO6 -> VL53L1X XSHUT 1
+*/
+
 
 #include <Arduino.h>
 #include <Wire.h>
 #include <VL53L1X.h>
 #include <StatusLED.h>
 
-VL53L1X sensor;
+#define NUM_SENSORS 2 // センサーの数を定義
+VL53L1X sensors[NUM_SENSORS];
 
 #define NUMPIXELS 1
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 StatusLED statusLED(pixels);
 
+#define XSHUT_0 5 // GPIO5 -> VL53L1X XSHUT 0
+#define XSHUT_1 6 // GPIO6 -> VL53L1X XSHUT 1
+#define SENSOR_ADDRESSES {0x30, 0x29} // センサーごとのI2Cアドレス（必要に応じて変更）
+
 void applySettings(String mode, int timing, int interval) {
-  if (mode == "short") {
-    sensor.setDistanceMode(VL53L1X::Short);
-  } else if (mode == "medium") {
-    sensor.setDistanceMode(VL53L1X::Medium);
-  } else if (mode == "long") {
-    sensor.setDistanceMode(VL53L1X::Long);
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    if (mode == "short") {
+      sensors[i].setDistanceMode(VL53L1X::Short);
+    } else if (mode == "medium") {
+      sensors[i].setDistanceMode(VL53L1X::Medium);
+    } else if (mode == "long") {
+      sensors[i].setDistanceMode(VL53L1X::Long);
+    }
+    sensors[i].setMeasurementTimingBudget(timing);
+    sensors[i].startContinuous(interval);
   }
-  sensor.setMeasurementTimingBudget(timing);
-  sensor.startContinuous(interval);
+}
+
+void applySettingsMulti(int idx, String mode, int timing, int interval) {
+  if (mode == "short") {
+    sensors[idx].setDistanceMode(VL53L1X::Short);
+  } else if (mode == "medium") {
+    sensors[idx].setDistanceMode(VL53L1X::Medium);
+  } else if (mode == "long") {
+    sensors[idx].setDistanceMode(VL53L1X::Long);
+  }
+  sensors[idx].setMeasurementTimingBudget(timing);
+  sensors[idx].startContinuous(interval);
 }
 
 void setup()
@@ -71,18 +95,39 @@ void setup()
   Wire.begin();
   Wire.setClock(400000); // use 400 kHz I2C
 
-  sensor.setTimeout(500);
-  if (!sensor.init())
-  {
-    Serial.println("Failed to detect and initialize sensor!");
-    statusLED.setState(StatusLED::Error);
-    while (1);
+  const uint8_t addresses[NUM_SENSORS] = SENSOR_ADDRESSES;
+
+  // XSHUTピン初期化
+  pinMode(XSHUT_0, OUTPUT);
+  pinMode(XSHUT_1, OUTPUT);
+  digitalWrite(XSHUT_0, LOW); // まず両方シャットダウン
+  digitalWrite(XSHUT_1, LOW);
+  delay(10);
+
+  // 1台ずつ順番に有効化・初期化・アドレス設定
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    if (i == 0) digitalWrite(XSHUT_0, HIGH);
+    if (i == 1) digitalWrite(XSHUT_1, HIGH);
+    delay(10);
+    sensors[i].setTimeout(500);
+    if (!sensors[i].init()) {
+      Serial.print("Failed to detect and initialize sensor ");
+      Serial.println(i);
+      statusLED.setState(StatusLED::Error);
+      while (1);
+    }
+    // デフォルトアドレス(0x29)以外なら変更
+    if (addresses[i] != 0x29) {
+      sensors[i].setAddress(addresses[i]);
+    }
   }
 
-  // デフォルト設定
-  applySettings("medium", 33000, 33);
+  // デフォルト設定（全センサー）
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    applySettingsMulti(i, "medium", 33000, 33);
+  }
 
-  // // センサの設定
+  // // センサの設定（1台目のみコマンドで設定）
   bool enabled = false;
   while (!enabled) {
     if (Serial.available()) {
@@ -94,7 +139,9 @@ void setup()
         String mode = cmd.substring(0, idx1);
         int timing = cmd.substring(idx1 + 1, idx2).toInt();
         int interval = cmd.substring(idx2 + 1).toInt();
-        applySettings(mode, timing, interval);
+        for (int i = 0; i < NUM_SENSORS; i++) {
+          applySettingsMulti(i, mode, timing, interval);
+        }
         Serial.println("OK");
         enabled = true;
       }
@@ -107,16 +154,24 @@ void setup()
 void loop()
 {
   uint32_t ms = millis();
-  uint16_t dist = sensor.read();
-  uint8_t timeout = sensor.timeoutOccurred() ? 1 : 0;
-  if(timeout) {
-    Serial.println("Timeout occurred!");
-    statusLED.setState(StatusLED::Error);
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    uint16_t dist = sensors[i].read();
+    uint8_t timeout = sensors[i].timeoutOccurred() ? 1 : 0;
+    Serial.print(i);
+    Serial.print(",");
+    Serial.print(ms);
+    Serial.print(",");
+    if(timeout) {
+      Serial.print("NULL");
+    } else {
+      Serial.print(dist);
+    }
+    Serial.println();
+    if(timeout) {
+      Serial.print("Timeout occurred on sensor ");
+      Serial.println(i);
+      statusLED.setState(StatusLED::Error);
+    }
   }
-  Serial.print(ms);
-  Serial.print(",");
-  Serial.print(dist);
-  Serial.print(",");
-  Serial.println(timeout);
   delay(5); // 追加: 1ms待つことでバッファオーバーフロー防止
 }
