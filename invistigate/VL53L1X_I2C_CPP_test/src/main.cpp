@@ -127,7 +127,7 @@ void setup()
     applySettingsMulti(i, "medium", 33000, 33);
   }
 
-  // // センサの設定（1台目のみコマンドで設定）
+  // センサの設定（すべて同じ設定にする）
   bool enabled = false;
   while (!enabled) {
     if (Serial.available()) {
@@ -139,9 +139,7 @@ void setup()
         String mode = cmd.substring(0, idx1);
         int timing = cmd.substring(idx1 + 1, idx2).toInt();
         int interval = cmd.substring(idx2 + 1).toInt();
-        for (int i = 0; i < NUM_SENSORS; i++) {
-          applySettingsMulti(i, mode, timing, interval);
-        }
+        applySettings(mode, timing, interval); // すべてのセンサーに同じ設定を適用
         Serial.println("OK");
         enabled = true;
       }
