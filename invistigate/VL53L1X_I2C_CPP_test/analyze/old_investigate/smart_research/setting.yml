@@ -1,3 +1,0 @@
-mode: "short" # short,medium,long
-timing_budget_us: 20000 # timing_budget_us
-inter_measurement_ms: 30 # inter_measurement_ms
