@@ -13,7 +13,7 @@ def main():
     console = Console()
     # --- センサ設定コマンド送信 ---
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write(b"short,5000,5\n")
+        ser.write(b"short,50000,100\n")
         # "OK"が返るまで最大5行読む
         for _ in range(5):
             response = ser.readline().decode().strip()
@@ -36,7 +36,13 @@ def main():
         count_dict = {}
         last_time = time.time()
         angle_dict = {}
-        BASE_MM = 150  # センサー間の基準距離（mm）
+        BASE_MM = 100  # センサー間の基準距離（mm）
+        # --- ローパスフィルタ用 ---
+        lp_dist = {}  # 各センサーのフィルタ済み距離
+        prev_lp_dist = {}  # 前回のフィルタ値
+        fc = 0.1  # カットオフ周波数(Hz)
+        Ts = 0.05  # サンプリング周期(秒)（20Hz表示を想定）
+        alpha = Ts / (Ts + (1/(2*math.pi*fc)))
         def make_table():
             table = Table(title="センサーデータ", show_lines=True)
             table.add_column("Sensor ID", justify="center")
@@ -71,13 +77,19 @@ def main():
                                 dist_val = None
                         sensor_data[sensor_id] = (ms, dist_disp)
                         count_dict[sensor_id] = count_dict.get(sensor_id, 0) + 1
+                        # --- ローパスフィルタ適用 ---
+                        if dist_val is not None:
+                            if sensor_id not in prev_lp_dist:
+                                prev_lp_dist[sensor_id] = dist_val
+                            lp_dist[sensor_id] = alpha * dist_val + (1 - alpha) * prev_lp_dist[sensor_id]
+                            prev_lp_dist[sensor_id] = lp_dist[sensor_id]
                         # 差分と角度計算（センサーが2つの場合を想定）
                         if dist_val is not None:
-                            if len(sensor_data) == 2:
+                            if len(sensor_data) == 2 and len(lp_dist) == 2:
                                 ids = sorted(sensor_data.keys())
                                 try:
-                                    d1 = float(sensor_data[ids[0]][1])
-                                    d2 = float(sensor_data[ids[1]][1])
+                                    d1 = lp_dist[ids[0]]
+                                    d2 = lp_dist[ids[1]]
                                     diff = d1 - d2
                                     angle_rad = math.atan(diff / BASE_MM)
                                     angle_deg = round(math.degrees(angle_rad), 2)
