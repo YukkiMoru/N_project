@@ -9,8 +9,8 @@ from rich.console import Console
 PORT = 'COM6'  # シリアルポート名
 BAUD = 115200  # ボーレート
 SENSOR_CMD_MODE = 'short'  # センサーモード: 'short', 'medium', 'long'
-SENSOR_CMD_TIMING = 33000  # 測定タイミングバジェット[us]（例: 33000, 50000, 110000 など）
-SENSOR_CMD_INTERVAL = 33  # 連続測定間隔[ms]（例: 5, 33, 100 など）
+SENSOR_CMD_TIMING = 20000  # 測定タイミングバジェット[us]（例: 33000, 50000, 110000 など）
+SENSOR_CMD_INTERVAL = 20  # 連続測定間隔[ms]（例: 5, 33, 100 など）
 SAMPLE_FREQ = int(1000 / SENSOR_CMD_INTERVAL)  # サンプリング周波数(Hz)（自動計算）
 BASE_MM = 150  # センサー間の基準距離（mm）
 # --- 設定ここまで ---
