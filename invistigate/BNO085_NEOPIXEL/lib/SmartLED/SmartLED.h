@@ -1,7 +1,7 @@
 #pragma once
 #include <Adafruit_NeoPixel.h>
 
-class StatusLED {
+class SmartLED {
 public:
     enum State {
         Initializing,
@@ -9,7 +9,7 @@ public:
         Outputting
     };
 
-    StatusLED(Adafruit_NeoPixel& pixels);
+    SmartLED(Adafruit_NeoPixel& pixels);
     void setState(State state);
 
 private:
