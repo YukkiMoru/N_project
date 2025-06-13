@@ -22,7 +22,7 @@ const int NUM_SENSORS = sizeof(bno08x_cs_pins) / sizeof(bno08x_cs_pins[0]);
 Adafruit_BNO08x bno08x_sensors[NUM_SENSORS] = { Adafruit_BNO08x(BNO08X_RESET_PIN) };
 
 // センサーレポート設定
-sh2_SensorId_t reportType = SH2_ACCELEROMETER;
+sh2_SensorId_t reportType = SH2_GEOMAGNETIC_ROTATION_VECTOR;
 long reportIntervalUs = 5000; // 5ms
 
 void setup_bno08x(int index) {
@@ -93,14 +93,16 @@ void loop() {
   for (int i = 0; i < NUM_SENSORS; i++) {
     if (bno08x_sensors[i].getSensorEvent(&sensorValue)) {
       switch (sensorValue.sensorId) {
-        case SH2_ACCELEROMETER:
+        case SH2_GEOMAGNETIC_ROTATION_VECTOR:
           Serial.print(millis());
           Serial.print(",");
-          Serial.print(sensorValue.un.accelerometer.x, 6);
+          Serial.print(sensorValue.un.rotationVector.real, 6);
           Serial.print(",");
-          Serial.print(sensorValue.un.accelerometer.y, 6);
+          Serial.print(sensorValue.un.rotationVector.i, 6);
           Serial.print(",");
-          Serial.println(sensorValue.un.accelerometer.z, 6);
+          Serial.print(sensorValue.un.rotationVector.j, 6);
+          Serial.print(",");
+          Serial.println(sensorValue.un.rotationVector.k, 6);
           break;
         // 他のセンサータイプのケースも追加可能
         default:

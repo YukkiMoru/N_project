@@ -27,9 +27,9 @@ def read_serial(port, baudrate, name):
 
 if __name__ == "__main__":
     # 1つのCOMポートとボーレートを指定
-    port = "COM3"
+    port = "COM6"
     baudrate = 115200
-    name = "COM3"
+    name = "COM6"
 
     print(f"{name} からの受信を開始します。Ctrl+Cで終了します。")
     try:
