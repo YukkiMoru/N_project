@@ -5,15 +5,24 @@ from rich.live import Live
 from rich.table import Table
 from rich.console import Console
 
-PORT = 'COM6'
-BAUD = 115200
+# --- 設定ここから ---
+PORT = 'COM6'  # シリアルポート名
+BAUD = 115200  # ボーレート
+SENSOR_CMD_MODE = 'short'  # センサーモード: 'short', 'medium', 'long'
+SENSOR_CMD_TIMING = 33000  # 測定タイミングバジェット[us]（例: 33000, 50000, 110000 など）
+SENSOR_CMD_INTERVAL = 33  # 連続測定間隔[ms]（例: 5, 33, 100 など）
+SAMPLE_FREQ = int(1000 / SENSOR_CMD_INTERVAL)  # サンプリング周波数(Hz)（自動計算）
+BASE_MM = 150  # センサー間の基準距離（mm）
+FC = 1  # ローパスフィルタのカットオフ周波数(Hz)
+# --- 設定ここまで ---
 
 
 def main():
     console = Console()
     # --- センサ設定コマンド送信 ---
+    command = f"{SENSOR_CMD_MODE},{SENSOR_CMD_TIMING},{SENSOR_CMD_INTERVAL}\n".encode()
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write(b"short,50000,100\n")
+        ser.write(command)
         # "OK"が返るまで最大5行読む
         for _ in range(5):
             response = ser.readline().decode().strip()
@@ -36,12 +45,11 @@ def main():
         count_dict = {}
         last_time = time.time()
         angle_dict = {}
-        BASE_MM = 100  # センサー間の基準距離（mm）
         # --- ローパスフィルタ用 ---
-        lp_dist = {}  # 各センサーのフィルタ済み距離
-        prev_lp_dist = {}  # 前回のフィルタ値
-        fc = 0.1  # カットオフ周波数(Hz)
-        Ts = 0.05  # サンプリング周期(秒)（20Hz表示を想定）
+        lp_dist = {}
+        prev_lp_dist = {}
+        fc = FC
+        Ts = 1.0 / SAMPLE_FREQ
         alpha = Ts / (Ts + (1/(2*math.pi*fc)))
         def make_table():
             table = Table(title="センサーデータ", show_lines=True)
