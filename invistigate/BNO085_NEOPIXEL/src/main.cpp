@@ -18,15 +18,15 @@ void setup() {
   pixels.begin();
   pixels.setBrightness(20);
   delay(10); // 初期化の安定化
-  statusLED.setState(SmartLED::Initializing);
+  statusLED.setState(SLED_Init);
   pixels.show(); // 明示的にshowを呼ぶ
   delay(1000);
 }
 
 void loop() {
-  statusLED.setState(SmartLED::Outputting);
+  statusLED.setState(SLED_Run);
   delay(1000);
-  statusLED.setState(SmartLED::Error);
+  statusLED.setState(SLED_Error);
   delay(1000);
   Serial.println("reset");
 }
