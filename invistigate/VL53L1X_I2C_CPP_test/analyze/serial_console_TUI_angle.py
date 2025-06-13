@@ -5,15 +5,22 @@ from rich.live import Live
 from rich.table import Table
 from rich.console import Console
 
-PORT = 'COM6'
-BAUD = 115200
-
+# --- 設定ここから ---
+PORT = 'COM6'  # シリアルポート名
+BAUD = 115200  # ボーレート
+SENSOR_CMD_MODE = 'short'  # センサーモード: 'short', 'medium', 'long'
+SENSOR_CMD_TIMING = 33000  # 測定タイミングバジェット[us]（例: 33000, 50000, 110000 など）
+SENSOR_CMD_INTERVAL = 33  # 連続測定間隔[ms]（例: 5, 33, 100 など）
+SAMPLE_FREQ = int(1000 / SENSOR_CMD_INTERVAL)  # サンプリング周波数(Hz)（自動計算）
+BASE_MM = 150  # センサー間の基準距離（mm）
+# --- 設定ここまで ---
 
 def main():
     console = Console()
     # --- センサ設定コマンド送信 ---
+    command = f"{SENSOR_CMD_MODE},{SENSOR_CMD_TIMING},{SENSOR_CMD_INTERVAL}\n".encode()
     with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write(b"short,5000,5\n")
+        ser.write(command)
         # "OK"が返るまで最大5行読む
         for _ in range(5):
             response = ser.readline().decode().strip()
@@ -36,7 +43,6 @@ def main():
         count_dict = {}
         last_time = time.time()
         angle_dict = {}
-        BASE_MM = 150  # センサー間の基準距離（mm）
         def make_table():
             table = Table(title="センサーデータ", show_lines=True)
             table.add_column("Sensor ID", justify="center")
@@ -50,7 +56,7 @@ def main():
                 table.add_row(sid, ms, dist, str(rate), str(angle))
             return table
         try:
-            with Live(make_table(), refresh_per_second=20, console=console) as live:  # 更新頻度を20に
+            with Live(make_table(), refresh_per_second=20, console=console) as live:
                 while True:
                     line = ser.readline().decode().strip()
                     now = time.time()
@@ -71,7 +77,7 @@ def main():
                                 dist_val = None
                         sensor_data[sensor_id] = (ms, dist_disp)
                         count_dict[sensor_id] = count_dict.get(sensor_id, 0) + 1
-                        # 差分と角度計算（センサーが2つの場合を想定）
+                        # 差分と角度計算（センサーが2つの場合を想定、生データで計算）
                         if dist_val is not None:
                             if len(sensor_data) == 2:
                                 ids = sorted(sensor_data.keys())
